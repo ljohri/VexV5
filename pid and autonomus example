@@ -1,0 +1,1088 @@
+#VEX Cortex Python-Project  For Gateway Robot
+#Irv Kalb - 3129, the Green MacHHHHine
+#Irv@furrypants.com
+
+import vex
+import sys
+
+
+JOYSTICK_DEADBAND_THRESHOLD = 20  # amount of deadband for joystick - if under this number, handle as zero
+FIXED_PID = True
+CONTINUOUS_PID = False
+
+#Button assignments:
+BUTTON_CHUNNEL_IN = '5u'
+BUTTON_CHUNNEL_OUT = '5d'
+BUTTON_ELEVATOR_UP = '6u'
+BUTTON_ELEVATOR_DOWN = '6d'
+
+
+BUTTON_WALRUS = '7u'
+BUTTON_REVERSE_DRIVE = '8d'
+BUTTON_AUTO_PILOT = '8u'  # very temporary
+
+#Lift potentiometer constants:
+LIFT_BOTTOM = 0
+LIFT_LOW_GOAL = 225     # was 450
+LIFT_MID_GOAL = 325     # was 650
+LIFT_MAX_HEIGHT = 450   # was 900
+
+
+# Sensor port assignments:
+PORT_LED_GREEN = 3
+PORT_LED_RED = 4
+PORT_WALRUS = 9
+PORT_LEFT_DRIVE_ENCODER = 1  # And port 2 for quad encoder
+PORT_LIFT_ENCODER = 5  # And port 6 for lift encoder
+PORT_RIGHT_DRIVE_ENCODER = 7  # And port 8 for quad encoder
+PORT_BOTTOM_LIMIT_SWITCH = 11  #
+
+
+# Autonomous step state constants:
+AUTONOMOUS_STEP_WORKING = 'working'
+AUTONOMOUS_STEP_FINISHED = 'finished'
+AUTONOMOUS_STEP_IGNORE = 'ignore'
+
+# Step constants for use in building autonomous routines:
+#  All drive actions take a parameter of distance in inches
+DRIVE = 'Drive'
+DRIVE_BEGIN = 'DriveBegin'  
+DRIVE_END = 'DriveEnd'  
+STRAFE = 'Strafe'
+STRAFE_BEGIN = 'StrafeBegin'  
+STRAFE_END = 'StrafeEnd'  
+TURN = 'Turn'
+TURN_BEGIN = 'TurnBegin'  
+TURN_END = 'TurnEnd' 
+#  The Lift actions take a distance measured in ticks of the potentiometer (positive for up, negative for down)
+LIFT = 'Lift'
+LIFT_BEGIN = 'LiftBegin'   
+LIFT_END = 'LiftEnd'
+#  The Intake action takes a parameter in seconds (positive for intake, negative for outtake)
+INTAKE = 'Intake'
+INTAKE_BEGIN = 'IntakeBegin'
+INTAKE_END = 'IntakeEnd'
+IN = 1000000  # something very large
+OUT = -1000000  # something very negatively large
+#  The Wait action take a parameter in milliseconds
+WAIT = 'Wait'
+#  The Walrus does not need a parameter, it is just a toggle.  So use zero as a placeholder.
+WALRUS = 'Walrus'
+
+
+# Choosable autonomous routines.
+# This is one big list, where each routine is a sublist of the list
+# The format of each list consists of a name as element zero, then each step is a two element list
+# consisting of an autonomous action and a parameter that is meaningful to that action.
+lAutonomousRoutines = [
+    ['SquareScore', [DRIVE, 24], [TURN, 90], [INTAKE_BEGIN,IN], [DRIVE, 30], [INTAKE_END, 0], \
+                [TURN, -90], [DRIVE, -24], [STRAFE, -8], [DRIVE, -6], [LIFT, LIFT_MAX_HEIGHT], [INTAKE, 5000]],
+    ['LiftMax', [LIFT, LIFT_MAX_HEIGHT], [INTAKE, 5000]],
+    ['LiftUpDown', [LIFT, 300], [WAIT, 1000], [LIFT, 0]], 
+    ['DrvIntDrv',  [DRIVE, 24], [INTAKE, 3000], [DRIVE, -24]],
+    ['TestLiftNIntake', [INTAKE, 3000], [LIFT, 300], [INTAKE, -3000], [LIFT, 100]],
+    ['TestTurnLift', [LIFT_BEGIN, 500], [TURN_BEGIN, 180], [INTAKE, 2000]],
+    ['TestLiftBegin', [INTAKE, 2000], [LIFT_BEGIN, LIFT_MAX_HEIGHT], [DRIVE, 40], [LIFT_END, 0], [INTAKE, 4000]],
+    ['TestIntakeBegin', [DRIVE, 24], [INTAKE_BEGIN,IN], [LIFT, 400], [INTAKE_END, 0], [DRIVE, 24]],\
+    ['TestAll', [DRIVE, 40], [WAIT, 2000], [DRIVE, -24], [LIFT, 300], [LIFT, 0], [TURN, 180], [TURN ,-180],\
+                [INTAKE, 3000], [INTAKE, -3000]],
+    ['TestIntake', [DRIVE, 24], [INTAKE_BEGIN, IN], [LIFT, 360], [INTAKE_END, 0], \
+                [DRIVE, -24], [INTAKE_BEGIN, OUT], [LIFT, 0], [INTAKE_END, 0]],
+    ['TestLift', [LIFT, 100], [WAIT, 1000], [LIFT, 650], [WAIT, 1000],[LIFT, 300], [WAIT, 1000], [LIFT, 0]], 
+    ['TestAuto', [DRIVE, 24], [INTAKE, 2000], [DRIVE, -24], [INTAKE, -2000]],
+    ['TestTurn90', [TURN, 90], [WAIT, 500], [TURN, 90], [WAIT, 1000], [TURN, -90], [WAIT, 500], [TURN,-90]],
+    ['TestTurn180', [TURN, 180], [WAIT, 500], [TURN, 180], [WAIT, 2000], [TURN, -180], [WAIT, 500], [TURN,-180]],
+    ['TestStrafe', [STRAFE, 18], [WAIT, 500], [STRAFE, -18]],
+    ['TestDriveBump', [STRAFE, 150], [INTAKE, 2000]],
+    ['TestPneu', [WALRUS, 0], [WAIT, 1000], [WALRUS, 0]],
+    ['Square', [DRIVE, 18], [TURN, 90], [DRIVE, 18], [TURN, 90], [DRIVE, 18],\
+               [TURN, 90], [DRIVE, 18], [TURN, 90]]
+    ]
+    
+lAutonomousNames = []
+nAutonomousRoutines = len(lAutonomousRoutines)
+for lAutonomousRoutine in lAutonomousRoutines:
+    thisName = lAutonomousRoutine[0]
+    lAutonomousNames.append(thisName)
+
+
+
+#Utility routines
+        
+def maxAbsOfList(listIn):
+    maxValue = -1000 
+    for thisValue in listIn:
+        thisValue = abs(thisValue)
+        if thisValue > maxValue:
+            maxValue = thisValue
+    return maxValue
+    
+    
+def incrMod(valueIn, theMax):
+    if valueIn == theMax:
+        return 0
+    else:
+        return (valueIn + 1)
+    
+def decrMod(valueIn, theMax):
+    if valueIn == 0:
+        return theMax
+    else:
+        return (valueIn - 1)
+    
+
+#Generic PID class.  Call mInit to initialize, then continuously call mUpdate to monitor.          
+class PID():
+    def __init__(self):
+        print 'At PID creation'
+
+    def mInit(self, goal, bIsFixedPID, kP, kI, kD, errorThreshold, derivativeThreshold):
+        self.goal = goal
+        self.bIsFixedPID = bIsFixedPID
+        
+        self.kP = kP
+        self.kI = kI
+        self.kD = kD
+        self.errorThreshold = errorThreshold
+        self.derivativeThreshold = derivativeThreshold
+        
+        self.error = goal
+        self.previousError = goal
+        self.derivative = 0
+        self.integral = 0
+
+# Returns True or False to say that we have reached the end condition, and a value of how far off we are from it.
+    def mUpdate(self, currentPosition):
+        ##  IF this is a FIXED PID AND WE'VE REACHED THE END CONDITION, THEN
+        ##  RETURN A BOOLEAN TO SAY THAT WE'RE DONE
+        
+        if self.bIsFixedPID:
+            if (abs(self.error) < self.errorThreshold) and (abs(self.derivative) < self.derivativeThreshold):
+                print 'PID reached end condition - exiting'
+                print
+                return True, 0  # True here means that we have reached the end condition
+            
+        
+        self.error = self.goal - currentPosition
+        self.integral += self.error
+        self.derivative = self.error - self.previousError
+        self.previousError = self.error
+        
+        #print 'in mUpdate of PID, error and derivative are: %g %g' % (self.error, -1 * self.derivative)
+
+        output = (self.kP * self.error) \
+                 + (self.kI * self.integral) \
+                 + (self.kD * self.derivative)
+        
+        #print 'Output is: %g ' % output
+
+        return False, output   # False here means we have not reached the end condition yet.
+
+
+class Timer():
+    def __init__(self):
+        pass
+    
+    def mStart(self, nMilliseconds):
+        print 'Starting timer wait for', nMilliseconds, 'milliseconds'
+        self.secondsLength = nMilliseconds / 1000.0  # length of timer in seconds
+        self.secondsStart = sys.clock()
+
+    
+    def mUpdate(self):
+
+        secondsNow = sys.clock()
+        secondsElapsed = secondsNow - self.secondsStart
+        
+        if secondsElapsed < self.secondsLength:
+            return False, secondsElapsed  # Keep going
+        else:
+            print 'Timer ended'
+            return True, secondsElapsed  # Done!
+            
+    #NOTE:  No need to have a reset or a stop.  This timer only checks when you do an mUpdate
+    #       Can reset by calling mStart again.
+            
+            
+class AutonomousTimer():
+    def __init__(self):
+        self.bRunningAutonomousStep = False
+        self.oTimer = Timer()
+        pass
+    
+    def mStartAuto(self, nMilliseconds):
+        print 'Starting autonomous wait for', nMilliseconds, 'milliseconds'
+        self.oTimer.mStart(nMilliseconds)
+        self.bRunningAutonomousStep = True
+        return AUTONOMOUS_STEP_WORKING
+    
+    def mUpdateAuto(self):
+        if not(self.bRunningAutonomousStep):
+            return AUTONOMOUS_STEP_IGNORE, 0
+            
+        bDone, secondsElapsed = self.oTimer.mUpdate()
+        
+        if bDone:
+            self.bRunningAutonomousStep = False
+            return AUTONOMOUS_STEP_FINISHED, secondsElapsed  # Done!
+            
+        else:
+            return AUTONOMOUS_STEP_WORKING, secondsElapsed  # Keep going
+            
+                       
+        
+        
+#class ORIGINALTimer():
+    #def __init__(self):
+        #self.bRunningAutonomousStep = False
+        #pass
+    
+    #def mStartAuto(self, nMilliseconds):
+        #print 'Starting autonomous wait for', nMilliseconds, 'milliseconds'
+        #self.msLength = nMilliseconds / 1000.0  # length of timer in seconds
+        #self.msStart = sys.clock()
+        #self.bRunningAutonomousStep = True
+
+    
+    #def mUpdateAuto(self):
+        #if not(self.bRunningAutonomousStep):
+            #return AUTONOMOUS_STEP_IGNORE, 0
+            
+        #msNow = sys.clock()
+        #msElapsed = msNow - self.msStart
+        
+        #if msElapsed < self.msLength:
+            #return AUTONOMOUS_STEP_WORKING, msElapsed  # Keep going
+        #else:
+            #self.bRunningAutonomousStep = False
+            #return AUTONOMOUS_STEP_FINISHED, msElapsed  # Done!
+            
+        
+
+class DriveMgr():
+    
+    def __init__(self):
+        self.bInReverseDrive = False
+        self.bRunningAutonomousStep = False
+        self.oBumpTimer = Timer()
+        print "Init DriveMgr"
+        self.mShowDrivingMode()
+        
+        self.oLeftDriveEncoder = vex.Encoder(PORT_LEFT_DRIVE_ENCODER, True)   # True means quad encoder
+        self.oRightDriveEncoder = vex.Encoder(PORT_RIGHT_DRIVE_ENCODER, True) 
+        
+        # Initialize PID constants
+        self.P_STRAIGHT = 0.6
+        self.I_STRAIGHT = 0.0
+        self.D_STRAIGHT = 1.8
+        self.ERROR_THRESHOLD_STRAIGHT = 20.0     # error threshold for exiting drive PID loop
+        self.DERIVATIVE_THRESHOLD_STRAIGHT = 0.1 # derivative threshold for exiting drive PID loop
+        self.TICKS_PER_INCH_STRAIGHT = 28.66
+
+        self.P_TURN = 0.6
+        self.I_TURN = 0.0
+        self.D_TURN = 1.8
+        self.ERROR_THRESHOLD_TURN = 15.0     # error threshold for exiting turn PID loop
+        self.DERIVATIVE_THRESHOLD_TURN = 0.1 # derivative threshold for exiting drive PID loop
+        self.TICKS_PER_DEGREE = 6.0
+        
+        self.P_STRAFE = 1.2
+        self.I_STRAFE = 0.0
+        self.D_STRAFE = 1.8
+        self.ERROR_THRESHOLD_STRAFE = 20.0     # error threshold for exiting strafe PID loop
+        self.DERIVATIVE_THRESHOLD_STRAFE = 0.1 # derivative threshold for exiting drive PID loop
+        self.TICKS_PER_INCH_STRAFE = 32.24
+
+        
+        self.oDrivePID = PID()
+        print 'created drive PID'
+
+        self.mClearDriveEncoders()
+
+        
+    def mToggleReverseDriving(self):
+        self.bInReverseDrive = not self.bInReverseDrive
+        self.mShowDrivingMode()
+        
+            
+    def mShowDrivingMode(self):
+        if self.bInReverseDrive:
+            ledGreen.off()
+            ledRed.on()
+
+        else:
+            ledGreen.on()
+            ledRed.off()
+            
+    def mClearDriveEncoders(self):
+        # Reset both drive encoders
+        self.oRightDriveEncoder.value(0)
+        self.oLeftDriveEncoder.value(0)
+        print 'clearing drive encoders, OK'
+            
+            
+    def mStartAuto(self, amount, driveType):
+        self.driveType = driveType
+        self.mClearDriveEncoders()
+        print 'in Drive mStartAuto, driveType is', self.driveType
+        
+        if (self.driveType == DRIVE) or (self.driveType == DRIVE_BEGIN):
+            goal = amount * self.TICKS_PER_INCH_STRAIGHT
+            self.oDrivePID.mInit(goal, FIXED_PID, \
+                  self.P_STRAIGHT, self.I_STRAIGHT, self.D_STRAIGHT, self.ERROR_THRESHOLD_STRAIGHT, self.DERIVATIVE_THRESHOLD_STRAIGHT)   # Driving is a FIXED_PID type (exits when it is done)
+
+        elif (self.driveType == TURN)  or (self.driveType == TURN_BEGIN):
+            goal = amount * self.TICKS_PER_DEGREE
+            self.oDrivePID.mInit(goal, FIXED_PID, \
+              self.P_TURN, self.I_TURN, self.D_TURN, self.ERROR_THRESHOLD_TURN, self.DERIVATIVE_THRESHOLD_TURN)   # Driving is a FIXED_PID type (exits when it is done)
+
+        elif (self.driveType == STRAFE) or (self.driveType == STRAFE_BEGIN):
+            goal = amount * self.TICKS_PER_INCH_STRAFE
+            self.oDrivePID.mInit(goal, FIXED_PID, \
+              self.P_STRAFE, self.I_STRAFE, self.D_STRAFE, self.ERROR_THRESHOLD_STRAFE, self.DERIVATIVE_THRESHOLD_STRAFE)   # Driving is a FIXED_PID type (exits when it is done)
+
+        elif (self.driveType == DRIVE_END) or (self.driveType == TURN_END) or  (self.driveType == STRAFE_END):
+            self.bRunningAutonomousStep = False
+            self.mStop()
+            return AUTONOMOUS_STEP_FINISHED #nothing more to do
+
+        
+        self.bRunningAutonomousStep = True
+        self.previousLeftEncoder = 100000  #something outrageous to start
+        self.previousRightEncoder = 100000  #something outrageous to start
+        self.oBumpTimer.mStart(1000)  # run for 1 second to allow drive to start before checking
+        self.bUpToSpeed = False
+        
+        if (self.driveType == DRIVE) or (self.driveType == TURN) or (self.driveType == STRAFE):
+            self.bForeground = True
+            return AUTONOMOUS_STEP_WORKING
+        elif (self.driveType == DRIVE_BEGIN) or (self.driveType == TURN_BEGIN) or (self.driveType == STRAFE_BEGIN):
+            self.bForeground = False
+            return AUTONOMOUS_STEP_FINISHED  # move on to next autonomous step
+        
+        
+    # Returns if end condition reached, if not reached then also returns motor value to set
+    def mUpdateAuto(self):
+        if not self.bRunningAutonomousStep:
+            return AUTONOMOUS_STEP_IGNORE, 0
+        
+        leftDriveEncoderValue = self.oLeftDriveEncoder.value()
+        rightDriveEncoderValue = self.oRightDriveEncoder.value()
+        
+        ### Special check for stalled.  
+        ### If so, the robot hasn't moved - we are stuck.  In this case, we're done!
+        
+        if not(self.bUpToSpeed):
+            bDone, nSeconds = self.oBumpTimer.mUpdate()
+            if bDone:
+                self.bUpToSpeed = True
+        
+        # This is some tricky code to check if the robot is supposed to be moving, but is stuck and is not moving
+        # We compare the current value of the encoders against the previous state of the encoders.  If both are within
+        # 2 counts of the previous values, we give up, rather than burn out the motors.
+        if self.bUpToSpeed:  #check if the robot is stuck!
+            if (abs(leftDriveEncoderValue - self.previousLeftEncoder) <= 2) and \
+               (abs(rightDriveEncoderValue - self.previousRightEncoder) <= 2):
+                self.bRunningAutonomousStep = False
+                self.mStop()
+                if self.bForeground:
+                    return AUTONOMOUS_STEP_FINISHED, 0  #  Return that it reached the ending condition
+                else:
+                    return AUTONOMOUS_STEP_IGNORE, 0
+            
+            else: #everything's OK
+                self.previousLeftEncoder = leftDriveEncoderValue
+                self.previousRightEncoder = rightDriveEncoderValue
+        
+        #print 'in Drive.mUpdateAuto, value of avgDriveEncoder is %g:' % avgDriveEncoderValue
+        
+        ####  USE self.driveType to do different types of driving
+        if (self.driveType == DRIVE) or (self.driveType == DRIVE_BEGIN):
+            avgDriveEncoderValue = (rightDriveEncoderValue - leftDriveEncoderValue) / 2
+            bReachedEndCondition, motorValue = self.oDrivePID.mUpdate(avgDriveEncoderValue)
+        
+            # mTankDrive expects:  frontLeft,  backLeft,  frontRight,  backRight
+            self.mTankDrive(motorValue, motorValue, -motorValue, -motorValue)
+            
+        elif (self.driveType == TURN) or (self.driveType == TURN_BEGIN):
+            absoluteAvgDriveEncoderValue = (rightDriveEncoderValue + leftDriveEncoderValue) / 2
+            bReachedEndCondition, motorValue = self.oDrivePID.mUpdate(-absoluteAvgDriveEncoderValue)
+        
+            # mTankDrive expects:  frontLeft,  backLeft,  frontRight,  backRight
+            self.mTankDrive(motorValue, motorValue, motorValue, motorValue)
+        
+        elif (self.driveType == STRAFE) or (self.driveType == STRAFE_BEGIN): # strafe
+            absoluteAvgDriveEncoderValue = (rightDriveEncoderValue + leftDriveEncoderValue) / 2
+            bReachedEndCondition, motorValue = self.oDrivePID.mUpdate(absoluteAvgDriveEncoderValue)
+            # mTankDrive expects:  frontLeft,  backLeft,  frontRight,  backRight
+            self.mTankDrive(-motorValue, motorValue, -motorValue, motorValue)        
+
+
+        if not bReachedEndCondition:
+            #print 'Not reached end drive condition'
+            if self.bForeground:
+                return AUTONOMOUS_STEP_WORKING, motorValue
+            else:
+                return AUTONOMOUS_STEP_IGNORE, motorValue
+
+        else:
+            print 'Reached end condition of drive auto'
+            self.bRunningAutonomousStep = False
+            if self.bForeground:
+                return AUTONOMOUS_STEP_FINISHED, motorValue
+            else:
+                return AUTONOMOUS_STEP_IGNORE, motorValue
+
+    def mStop(self):
+        self.mTankDrive(0, 0, 0, 0)  #stop all drive motors
+        
+    def mDeadbandify(self, valueIn):
+        if abs(valueIn) < JOYSTICK_DEADBAND_THRESHOLD:
+            return 0
+        else:
+            return valueIn
+            
+    def mUserDrive(self, leftX, leftY, rightX, rightY):
+        # Left joystick for driving and turning
+        # Right joystick for strafing
+                
+        X1 = self.mDeadbandify(leftX)
+        Y1 = self.mDeadbandify(leftY)
+        X2 = self.mDeadbandify(rightX)
+        if X2 != 0:
+            X2 = (X2/abs(X2)) * 127.0
+        
+        if self.bRunningAutonomousStep:
+            if (abs(X1) > 0) or (abs(Y1) > 0) or (abs(X2) > 0):
+                print 'PID ended by manual override'
+                print
+                self.bRunningAutonomousStep = False
+            
+
+        # Generate motor value from joystick input
+        # Convert to float - (would normally call 'float', but that is not supported in this version of Python)
+        frontLeftMotorValue = 1.0 * (Y1 - X1 - X2)
+        backLeftMotorValue = 1.0 * (Y1 - X1 + X2)
+        frontRightMotorValue = 1.0 * (Y1 + X1 - X2)
+        backRightMotorValue = 1.0 * (Y1 + X1 + X2)
+        if self.bInReverseDrive:
+            #print "In reverse drive mode"
+            frontLeftMotorValue = -frontLeftMotorValue
+            backLeftMotorValue = -backLeftMotorValue
+            frontRightMotorValue = -frontRightMotorValue
+            backRightMotorValue = -backRightMotorValue
+      
+            # Attempt at scaling motor output, may try this later ...
+            
+            #maxMotor = maxAbsOfList([frontRightMotorValue, frontLeftMotorValue, backLeftMotorValue, backRightMotorValue])
+            #scalar = 1.0
+            #if maxMotor >= 127.0: 
+                #scalar = 127.0 / maxMotor
+
+            #frontLeftDrive.run(scalar * frontLeftMotorValue)
+            #backLeftDrive.run(scalar * backLeftMotorValue)
+            #frontRightDrive.run(scalar * frontRightMotorValue) 
+            #backRightDrive.run(scalar * backRightMotorValue)
+            
+        self.mTankDrive(frontLeftMotorValue, backLeftMotorValue, frontRightMotorValue, backRightMotorValue)
+            
+    def mTankDrive(self, frontLeft, backLeft, frontRight, backRight):
+        #send values to each drive motor
+        frontLeftDrive.run(frontLeft)
+        backLeftDrive.run(backLeft)
+        frontRightDrive.run(frontRight) 
+        backRightDrive.run(backRight)
+        
+
+class LiftMgr():
+    def __init__(self):
+        self.bRunningAutonomousStep = False
+        self.oLiftEncoder = vex.Encoder(PORT_LIFT_ENCODER, True)   # True means quad encoder
+        self.oBottomLimitSwitch = vex.DigitalInput(PORT_BOTTOM_LIMIT_SWITCH)
+        self.mClearLiftEncoder()
+    
+    def mStartAuto(self, target, type):  # for autonomous
+        print 'Starting LiftMgr Autonomous'
+        self.target = target
+        self.type = type
+        self.bRunningAutonomousStep = True
+        self.bDone = False
+        ### EVENTUALLY START A PID HERE
+        
+        if self.type == LIFT:
+            self.bForeground = True
+            return AUTONOMOUS_STEP_WORKING
+            
+        elif self.type == LIFT_BEGIN:
+            self.bForeground = False  #meaning background
+            return AUTONOMOUS_STEP_FINISHED  #So we move on to next step  
+            
+        elif self.type == LIFT_END:
+            self.mStop()
+            self.bRunningAutonomousStep = False
+            print 'Got a LIFT_END'
+            return AUTONOMOUS_STEP_FINISHED    #Allows the autonomous routine to move on to the next step
+
+        
+        
+    
+    def mUpdateAuto(self):
+        #print 'In elevator update method'
+        if not(self.bRunningAutonomousStep):
+            return AUTONOMOUS_STEP_IGNORE, 0
+            
+        liftEncoderValue = -self.oLiftEncoder.value()
+        print 'In Lift mUpdateAudo, liftEncoder is:', liftEncoderValue
+        oLCD.mWriteTop(str(liftEncoderValue))
+        
+        ###  TEMPORARY CHECK FOR TARGET REACHED
+        ###  EVENTUALLY REPLACE THIS WITH A PID LOOP
+        bDone = (liftEncoderValue > (self.target - 5)) and (liftEncoderValue < (self.target + 5))
+        
+        # If are not within the threshold range of our target (above), do the appropriate up or down
+        # Both of these methods return a boolean to say if we've reached the top or bottom respectively.
+        if not bDone:
+            if liftEncoderValue < self.target:
+                bDone = self.mUp()
+            else:
+                bDone = self.mDown()
+                # If bDone is true here, the evelator has reached the bottom, so we need to clear the lift encoder
+                if bDone:
+                    self.mClearLiftEncoder()
+        
+        # Check for done again, because we may have reached top or bottom which reset bDone
+        if not bDone:
+            if self.bForeground:
+                return AUTONOMOUS_STEP_WORKING, liftEncoderValue
+            else:
+                return AUTONOMOUS_STEP_IGNORE, 0
+
+        else:  # done
+            self.bRunningAutonomousStep = False
+            self.mStop()
+            if self.bForeground:
+                return AUTONOMOUS_STEP_FINISHED, 0
+            else:
+                return AUTONOMOUS_STEP_IGNORE, 0
+
+            
+    def mClearLiftEncoder(self):
+        # Reset lift encoders
+        self.oLiftEncoder.value(0)
+        print 'Cleared lift encoder'
+            
+        ###EVENTUALLY UPDATE THE PID, AND RETURN AUTONOMOUS_STEP_WORKING OR AUTONOMOUS_STEP_FINISHED
+        ### ALSO, Add in a manual override - if touch up or down button in driver, kill autonpilot
+        
+    def mAtTop(self):    
+        liftEncoderValue = -self.oLiftEncoder.value()
+        bAtTop = (liftEncoderValue >= LIFT_MAX_HEIGHT)
+        outputLine = 'val/top ' + str(liftEncoderValue) + ' ' + str(bAtTop)
+        oLCD.mWriteTop(outputLine)
+        if bAtTop:
+            self.mStop()
+        return bAtTop
+        
+        
+    def mUp(self):
+        #run elevator up
+        liftEncoderValue = -self.oLiftEncoder.value()
+        #oLCD.mWriteTop(str(liftEncoderValue) + '  test')
+        if self.mAtTop():
+            return True
+            
+        frontLeftElevator.run(100.) 
+        backLeftElevator.run(100.) 
+        frontRightElevator.run(100.) 
+        backRightElevator.run(100.) 
+        return self.mAtTop()
+        
+    def mAtBottom(self):
+        liftEncoderVal = -self.oLiftEncoder.value()
+        #liftEncoderValue = -self.oLiftEncoder.value()
+        #oLCD.mWriteTop(str(liftEncoderValue))
+
+        bBottomLimitSwitchHit = self.oBottomLimitSwitch.is_on()
+        #oLCD.mWriteTop(str(bBottomLimitSwitchHit))
+
+        #bAtBottom = (liftEncoderVal <= 5) or bBottomLimitSwitchHit
+        bAtBottom = bBottomLimitSwitchHit
+
+        if bAtBottom:
+            self.mStop()
+            self.mClearLiftEncoder()
+        return bAtBottom
+        
+    def mDown(self):
+        #Check if we are at the bottom already
+        if self.mAtBottom():
+            return True 
+        
+        #run elevator down
+        frontLeftElevator.run(-100.) 
+        backLeftElevator.run(-100.) 
+        frontRightElevator.run(-100.) 
+        backRightElevator.run(-100.)
+
+        bAtBottom = self.mAtBottom()
+        return bAtBottom
+        
+    def mGoToBottom(self):
+        print 'In mGoToBottom'
+        bAtBottom = self.oBottomLimitSwitch.is_on()
+        while not bAtBottom:
+            frontLeftElevator.run(-100.) 
+            backLeftElevator.run(-100.) 
+            frontRightElevator.run(-100.) 
+            backRightElevator.run(-100.)
+            bAtBottom = self.oBottomLimitSwitch.is_on()
+        
+        self.mStop()
+        self.mClearLiftEncoder()
+
+
+    def mStop(self):
+        #stop elevator
+        frontLeftElevator.run(0.) 
+        backLeftElevator.run(0.) 
+        frontRightElevator.run(0.) 
+        backRightElevator.run(0.) 
+        
+        
+class IntakeMgr():
+    
+    def __init__(self):
+        self.bRunningAutonomousStep = False
+        self.oTimer = Timer() #create a new timer object
+    
+    def mStartAuto(self, nMilliseconds, type):
+        print 'Starting Autonomous Intake'
+        self.type = type   #could be:  INTAKE, INTAKE_BEGIN, INTAKE_END
+        self.bRunningAutonomousStep = True 
+            
+        if (self.type == INTAKE) or (self.type == INTAKE_BEGIN):    
+            self.msLength = nMilliseconds
+            self.bIn = (nMilliseconds > 0)  # positive time means intake, negative time means outtake
+            self.nMilliseconds = abs(nMilliseconds)
+            self.oTimer.mStart(self.nMilliseconds)
+            if self.type == INTAKE:
+                self.bForeground = True
+                return AUTONOMOUS_STEP_WORKING
+            else:  #This was an INTAKE_BEGIN
+                self.bForeground = False  #meaning background
+                return AUTONOMOUS_STEP_FINISHED  #So we move on to next step
+            
+        elif self.type == INTAKE_END:
+            self.mStop()
+            self.bRunningAutonomousStep = False
+            return AUTONOMOUS_STEP_FINISHED  #So we move on to next step
+        
+    
+    def mUpdateAuto(self):
+        if not(self.bRunningAutonomousStep):
+            return AUTONOMOUS_STEP_IGNORE, 0
+            
+        bDone, amount = self.oTimer.mUpdate()
+        if not bDone:
+            if self.bIn:
+                self.mIn()
+            else:
+                self.mOut()
+            if self.bForeground:
+                return AUTONOMOUS_STEP_WORKING, amount
+            else:
+                return AUTONOMOUS_STEP_IGNORE, 0
+                
+        else:
+            self.bRunningAutonomousStep = False
+            self.mStop()
+            print 'Intake finished'
+            if self.bForeground:
+                return AUTONOMOUS_STEP_FINISHED, 0
+            else:
+                return AUTONOMOUS_STEP_IGNORE, 0
+
+        
+    def mIn(self):
+        #run intake in
+        leftChunnelMotor.run(-100.) 
+        rightChunnelMotor.run(-100.) 
+        #print 'Chunnel in'
+        
+    def mOut(self):
+        #run intake out
+        leftChunnelMotor.run(100.) 
+        rightChunnelMotor.run(100.) 
+        #print 'Chunnel out'
+        
+    def mStop(self):
+        #stop intake 
+        leftChunnelMotor.run(0.) 
+        rightChunnelMotor.run(0.)
+       
+
+        
+class Pneumatic():
+    def __init__(self, portNum, bStartingState):
+        self.portNum = portNum
+        self.bState = bStartingState
+        self.mActivateOrDeactivate()
+    
+    def mActivateOrDeactivate(self):
+        if self.bState:
+            vex.DigitalOutput(self.portNum).on()
+        else:
+            vex.DigitalOutput(self.portNum).off()
+        
+    def mToggle(self):
+        self.bState = not self.bState
+        self.mActivateOrDeactivate()
+        
+    def mStartAuto(self):
+        self.mToggle()   # Reverses state of pneumatic
+        # Toggling pneumatics is a one time (immediate) thing.  Therefore, no need to call mUpdateAuto
+        return AUTONOMOUS_STEP_FINISHED  # 
+        
+    #def mUpdateAuto(self):
+
+        
+        
+class LCD():
+    # NOTE:  LCD buttons are handled by the ButtonMgr, as though they are on the Joystick
+    def __init__(self):
+        self.lcd = vex.LcdDisplay(False) # LCD display with no scrolling
+        
+        # Set up save buffers for each LCD line.  This is used to avoid re-writing the same line - which leads to flashing.
+        self.lastTop = ''
+        self.lastBottom = ''
+
+        
+    def mGetLCDRef(self):
+        return self.lcd
+
+        
+    def mWriteTop(self, text):
+        if text == self.lastTop:  #optimization.  Don't do the write if the text has not changed
+            return
+    
+        self.lastTop = text
+        self.lcd.write_top(text)
+        
+    def mWriteBottom(self, text):
+        if text == self.lastBottom:  #optimization.  Don't do the write if the text has not changed
+            return
+        self.lastBottom = text
+        self.lcd.write_bottom(text)
+        
+    
+    
+class ButtonMgr():
+
+    def __init__(self, listOfToggleButtonNames, LCDObject):
+        lcd = LCDObject.mGetLCDRef()
+        
+    # This is a list of all buttons.  The last three are the three buttons on the LCD.
+    # maps each button on the joystick to a built in function to be called to check that button's state
+        self.dictButtonsToFunctions = {'5d':joy.b5down, '5u':joy.b5up, \
+                                       '6d':joy.b6down, '6u':joy.b6up, \
+                                       '7d':joy.b7down, '7u':joy.b7up,   '7r':joy.b7right, '7l':joy.b7left, \
+                                       '8d':joy.b8down, '8u':joy.b8up,   '8r':joy.b8right, '8l':joy.b8left, \
+                                       'left': lcd.button_left, 'mid':lcd.button_mid, 'right':lcd.button_right}
+
+
+        self.dictOfToggleButtons = {}
+        for toggleButtonName in listOfToggleButtonNames:
+            functionToCall = self.dictButtonsToFunctions[toggleButtonName]
+            oToggleButton = ToggleButton(toggleButtonName, functionToCall)
+            self.dictOfToggleButtons[toggleButtonName] = oToggleButton
+        
+    def mPressed(self, buttonName):
+        # See if the button name passed in was a toggle button
+        # (In our list of toggle buttons)
+        # If so, find the appropriate toggle button obj, and ask it if it was pressed.
+        
+        if buttonName in self.dictOfToggleButtons:
+            oToggleButton = self.dictOfToggleButtons[buttonName]
+            bPressed = oToggleButton.mPressed()
+            
+        # otherwise, this is a standard button, read the state from the hardware and return it
+        else:
+            functionToCall = self.dictButtonsToFunctions[buttonName]
+            bPressed = functionToCall()
+        
+        return bPressed
+   
+
+class ToggleButton():
+    def  __init__(self, buttonName, functionToCall):
+        print "Creating toggle button " + buttonName 
+        self.functionToCall = functionToCall
+        self.state = 'up'
+        
+    def mPressed(self):
+        isButtonDown = self.functionToCall()
+
+        if self.state == 'up':
+            if not isButtonDown:
+                return False
+            else:
+                self.state = 'down'
+                return True
+            
+        else:    #state is down
+            if not isButtonDown:
+                self.state = 'up'
+            return False
+            
+            
+class AutonomousChooser():
+    def __init__(self, lNames):
+        self.lNames = lNames
+        self.nIndexOfLastName = len(self.lNames) - 1
+        self.indexOfAutonomous = 0
+        self.mShowAutonomousChoice()
+        
+    def mAutoUp(self):
+        self.indexOfAutonomous = incrMod(self.indexOfAutonomous, self.nIndexOfLastName)
+        self.mShowAutonomousChoice()
+        
+    def mAutoDown(self):
+        self.indexOfAutonomous = decrMod(self.indexOfAutonomous, self.nIndexOfLastName)
+        self.mShowAutonomousChoice()
+        
+    def mAutoSelect(self):
+        # With the full competition template, this would be used to select the chosen autonomous routine during pre-autonomous mode.
+        # For now, just use the one showing on the second line.
+        pass
+        
+    def mShowAutonomousChoice(self):
+        #global oLCD
+        nameToShow = self.lNames[self.indexOfAutonomous]
+        nChars = len(nameToShow)
+        secondLine = '<' + self.mPad(nameToShow) + '>'
+        oLCD.mWriteBottom(secondLine)
+
+        
+    def mGetSelectedAutonomousRoutine(self):
+        return self.indexOfAutonomous
+        
+    def mPad(self, stringIn):
+        size = len(stringIn)
+        if size > 14:
+            return stringIn[0:11]
+            
+        nSpaces = 14 - size
+        padding = ''
+        for i in range(nSpaces):
+            padding = padding + ' '
+        stringOut = stringIn + padding
+        return stringOut
+
+            
+
+def runAutonomous(selectedAutonomousIndex):
+
+    stepIndex = 0
+    lStartingAutonomousRoutine = lAutonomousRoutines[selectedAutonomousIndex]
+    
+    ## Modify the chosen autonomous routine to add a wait of 100 ms in between each step
+    ## This allows each step to finish cleanly before moving on to the next step
+    
+    lAutonomousRoutine = [lStartingAutonomousRoutine[0]]  # create a list using just the original name
+    for step in lStartingAutonomousRoutine[1:]:  # for each step in the original routine
+        lAutonomousRoutine.append(step)
+        lAutonomousRoutine.append([WAIT, 100])
+        
+    nSteps = len(lAutonomousRoutine)
+    autonomousStepState = AUTONOMOUS_STEP_FINISHED
+    print 'in runAutonomous, lAuto selected is', str(lAutonomousRoutine), nSteps, 'steps'
+    
+    #Tell lift to go all the way down before starting autonomous
+    oLiftMgr.mGoToBottom()
+    
+    while True:
+        if autonomousStepState == AUTONOMOUS_STEP_FINISHED:
+            stepIndex = stepIndex + 1  # zeroeth element is the name
+            if stepIndex < nSteps:
+                lCurrentStep = lAutonomousRoutine[stepIndex]
+            
+                action = lCurrentStep[0]
+                param = lCurrentStep[1]
+                
+                print 'Starting step', stepIndex, 'of autonomous:', action, param
+                
+                autonomousStepState = AUTONOMOUS_STEP_WORKING  # Set state to working at start of each step
+
+                if action in [DRIVE, DRIVE_BEGIN, DRIVE_END, TURN, TURN_BEGIN, TURN_END, STRAFE,  STRAFE_BEGIN, STRAFE_END]:        
+                    autonomousStepState = oDriveMgr.mStartAuto(param, action)
+                    
+                elif action in [LIFT, LIFT_BEGIN, LIFT_END]:
+               
+                    autonomousStepState = oLiftMgr.mStartAuto(param, action)
+
+                elif (action == INTAKE) or (action == INTAKE_BEGIN) or (action == INTAKE_END):
+                    autonomousStepState = oIntakeMgr.mStartAuto(param, action)
+
+                elif action == WALRUS:
+                    autonomousStepState = oWalrus.mStartAuto()
+                    
+                elif action == WAIT:
+                    autonomousStepState = oAutonomousTimer.mStartAuto(param)
+                    
+                else:
+                    print "UNKNOWN AUTONOMOUS COMMAND:  " + action
+                    
+            else:
+                print 'Finished with autonomous routine'
+                return # done with autonomous
+            
+        else:  #allow any previously started step or steps some time to execute
+                    
+            stateOfThisStep, amount = oDriveMgr.mUpdateAuto()
+            if stateOfThisStep == AUTONOMOUS_STEP_FINISHED:
+                autonomousStepState = AUTONOMOUS_STEP_FINISHED
+           
+            stateOfThisStep, amount = oLiftMgr.mUpdateAuto()
+            if stateOfThisStep == AUTONOMOUS_STEP_FINISHED:
+                autonomousStepState = AUTONOMOUS_STEP_FINISHED
+
+            stateOfThisStep, amount = oIntakeMgr.mUpdateAuto()
+            if stateOfThisStep == AUTONOMOUS_STEP_FINISHED:
+                autonomousStepState = AUTONOMOUS_STEP_FINISHED
+            
+            stateOfThisStep, amount = oAutonomousTimer.mUpdateAuto()
+            if stateOfThisStep == AUTONOMOUS_STEP_FINISHED:
+                autonomousStepState = AUTONOMOUS_STEP_FINISHED
+            
+            # No need to update pneumatics since pneumatics are immediate, and are handled in its mStartAuto
+
+
+#####################################################################
+#
+#  MAIN PROGRAM START
+#
+#####################################################################
+
+
+# Configure the controller
+joy = vex.Joystick()
+
+ledGreen  = vex.DigitalOutput(PORT_LED_GREEN)  
+ledRed    = vex.DigitalOutput(PORT_LED_GREEN)  
+
+
+
+# set up names for the drive motors
+frontRightDrive = vex.Motor(10, True) # reverse polarity
+backRightDrive = vex.Motor(9) 
+backLeftDrive = vex.Motor(2)  
+frontLeftDrive = vex.Motor(1, True) # reverse polarity
+
+frontLeftElevator = vex.Motor(3)
+backLeftElevator = vex.Motor(4, True)  #reversed
+backRightElevator = vex.Motor(7)
+frontRightElevator = vex.Motor(8, True) #reversed
+
+
+# and names for the chunnel motors  (one of these is reversed in hardware)
+leftChunnelMotor = vex.Motor(5)
+rightChunnelMotor = vex.Motor(6)
+
+lcd = vex.LcdDisplay(False)
+
+ledGreen.on()
+ledRed.off()
+
+                          
+oLCD = LCD()  #create the LCD object
+
+# Create the button manager, pass in a list of buttons that should be toggles
+oButtonMgr = ButtonMgr([BUTTON_WALRUS, BUTTON_REVERSE_DRIVE, BUTTON_AUTO_PILOT, 'left', 'mid', 'right'], oLCD) 
+
+oWalrus = Pneumatic(PORT_WALRUS, False)    # Digital port 9, start in the off position
+
+oDriveMgr = DriveMgr()
+oLiftMgr = LiftMgr()
+oIntakeMgr = IntakeMgr()
+oAutonomousTimer = AutonomousTimer()  #generic timer for use in autonomous
+
+
+oAutonomousChooser = AutonomousChooser(lAutonomousNames)
+
+
+print '=Start big loop='
+#testLiftEncoder = vex.Encoder(PORT_LIFT_ENCODER, True)    # True means quad encoder
+
+
+# Main loop - react to user controlling the robot
+while True:
+    #liftEncoderValU = -testLiftEncoder.value()
+    #oLCD.mWriteTop(str(liftEncoderValU))
+        
+    # Run the pneumatics (Walrus)
+    if oButtonMgr.mPressed(BUTTON_WALRUS):
+        oWalrus.mToggle()
+        
+    # Toggle Reverse Driving
+    if oButtonMgr.mPressed(BUTTON_REVERSE_DRIVE):
+        oDriveMgr.mToggleReverseDriving()
+        
+    # Run an autonomous routine - TEMPORARY - runs when pressing 8U button
+    # In a real competitive robot, this would be in the AUTON section
+    # and the selection would be in PRE_AUTON
+    
+    if oButtonMgr.mPressed(BUTTON_AUTO_PILOT):
+       
+        print  'pressed auto button'
+        autonomousSelected = oAutonomousChooser.mGetSelectedAutonomousRoutine()
+        print 'Running autonomous routine number: ' + str(autonomousSelected)
+        runAutonomous(autonomousSelected)  # pass in number of autonomous routine to run
+   
+    # Run the drive, based on the joysticks     
+    oDriveMgr.mUserDrive(joy.axis3(), joy.axis4(), joy.axis1(), joy.axis2())  #  if in autopilot, this acts as a manual overrides and gets us out of autopilot
+    
+    
+    #Run the intake    
+    if oButtonMgr.mPressed(BUTTON_CHUNNEL_IN):
+        oIntakeMgr.mIn()
+    elif oButtonMgr.mPressed(BUTTON_CHUNNEL_OUT):
+        oIntakeMgr.mOut()
+    else:
+        oIntakeMgr.mStop()
+    
+    
+    # Run the elevator
+    if oButtonMgr.mPressed(BUTTON_ELEVATOR_UP):
+        oLiftMgr.mUp()
+    elif oButtonMgr.mPressed(BUTTON_ELEVATOR_DOWN):
+        oLiftMgr.mDown()
+    else:
+        oLiftMgr.mStop()
+    
+
+    #if oButtonMgr.mPressed('left'):
+        #oLCD.mWriteTop("Left Button Hit")
+        
+    #if oButtonMgr.mPressed('mid'):
+        #oLCD.mWriteTop("Middle Button Hit")
+        
+    #if oButtonMgr.mPressed('right'):
+        #oLCD.mWriteTop("Right Button Hit")
+        
+    #if oButtonMgr.mPressed('left') and oButtonMgr.mPressed('right'):
+        #oLCD.mWriteBottom('left & right')
+        
+    if oButtonMgr.mPressed('left'):
+        oAutonomousChooser.mAutoDown()
+        
+    if oButtonMgr.mPressed('mid'):
+        oAutonomousChooser.mAutoSelect()  #For now, doesn't do anything
+        
+    if oButtonMgr.mPressed('right'):
+        oAutonomousChooser.mAutoUp()
+        
+    if oButtonMgr.mPressed('left') and oButtonMgr.mPressed('right'):
+        oLCD.mWriteBottom('left & right')
+
+        
+                   

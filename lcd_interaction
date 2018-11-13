@@ -1,0 +1,48 @@
+# VEX V5 Python Project
+import sys
+import vex
+
+#region config
+brain   = vex.Brain();
+motor_R = vex.Motor(vex.Ports.PORT15, vex.GearSetting.RATIO18_1, True)
+motor_L = vex.Motor(vex.Ports.PORT16, vex.GearSetting.RATIO18_1, False)
+dt      = vex.Drivetrain(motor_L, motor_R, 319.1764, 292.1, vex.DistanceUnits.MM)
+#endregion config
+
+#For the purposes of this program, we assume the brain is oriented as on the claw bot with the bottom of the screen facing forward.
+#That is, the +Y direction (top to bottom) on our screen matches the forward direction on our robot.
+
+brain.screen.render(True,False)                                                             #This sets the screen to not refresh on a schedule,
+                                                                                            #but do wait for us to tell it to render something
+                                                                                            #This prevents screen flickering and tearing
+while True:
+    brain.screen.clear_screen()                                                             #Clears the screen with default color (black)
+    for i in range(0,2):
+        brain.screen.draw_line(160*(i+1),0,160*(i+1),240)                                   #Draws a vertical line
+        brain.screen.draw_line(0,80*(i+1),480,80*(i+1))                                     #draws a horizontal line
+    brain.screen.render()                                                                   #Render what we just drew all at once ("swap the buffer")
+    if brain.screen.pressing():                                                             #did the screen get pressed?
+        brain.screen.draw_circle(brain.screen.x_position(),brain.screen.y_position(),16)    #draws a circle where the finger just pressed
+        brain.screen.render()                                                               #swap the buffer to display our circle
+        sys.sleep(1)                                                                        #wait for the finger to get clear
+        if brain.screen.y_position() > 160:                                                 #bottom third of screen (robot front)
+            if brain.screen.x_position() < 160:                                             #left third of screen (robot right)
+                dt.turn_for(vex.TurnType.RIGHT,45)
+            elif brain.screen.x_position() > 320:                                           #right third of screen (robot left)
+                dt.turn_for(vex.TurnType.LEFT,45)
+            else:                                                                           #middle third of bottom third
+                dt.drive_for(vex.DirectionType.FWD,6,vex.DistanceUnits.IN)
+        elif brain.screen.y_position() < 80:                                                #top third of screen (robot back)
+            if brain.screen.x_position() < 160:                                             #left third of screen (robot right)
+                dt.turn_for(vex.TurnType.RIGHT,135)
+            elif brain.screen.x_position() > 320:                                           #right third of screen (robot left)
+                dt.turn_for(vex.TurnType.LEFT,135)
+            else:                                                                           #middle third of top third
+                dt.drive_for(vex.DirectionType.REV,6,vex.DistanceUnits.IN)
+        else:                                                                               #middle horizontal band of screen
+            if brain.screen.x_position() < 160:                                             #left third of screen (robot right)
+                dt.turn_for(vex.TurnType.RIGHT,90)
+            elif brain.screen.x_position() > 320:                                           #right third of screen (robot left)
+                dt.turn_for(vex.TurnType.LEFT,90)
+            else:                                                                           #center ninth of screen
+                pass#do nothing
