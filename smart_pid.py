@@ -1,3 +1,18 @@
+# VEX V5 Python Project
+import sys
+import vex
+from vex import *
+
+#region config
+brain = vex.Brain()
+
+rightencoder = vex.Encoder(brain.three_wire_port.a)
+leftencoder = vex.Encoder(brain.three_wire_port.b)
+motor_right = vex.Motor(vex.Ports.PORT1, vex.GearSetting.RATIO18_1, True)
+motor_left = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, False)
+
+
+
 # cav-pid.py - Runs motors with constant angular velocity, using shaft encoders,
 #              and a proportional integral derivative control loop.
 #
@@ -8,9 +23,11 @@
 #
 # This file is licensed under the terms of the MIT license.
 
-import vexcortex as vex
 import sys
-
+import vex
+import math
+from vex import *
+from math import *
   
 #The recipe gives simple implementation of a Discrete Proportional-Integral-Derivative (PID) controller. PID controller gives output value for error between desired reference input and measurement feedback to minimize error value.
 #More information: http://en.wikipedia.org/wiki/PID_controller
@@ -23,6 +40,64 @@ import sys
 #p.setPoint(5.0)
 #while True:
 #     pid = p.update(measurement_value)
+con     = vex.Controller(vex.ControllerType.PRIMARY)
+
+motor_right = vex.Motor(vex.Ports.PORT1, vex.GearSetting.RATIO18_1, True)
+motor_left = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, False)
+
+'''
+encoder_right = vex.digital_quad_encoder(brain.three_wire_port.a)
+encoder_left = vex.digital_quad_encoder(brain.three_wire_port.b)
+
+pid_right = pidmotor(motor_right, encoder_right)
+pid_left  = pidmotor(motor_left, encoder_left)
+
+sys.run_in_thread(pid_right.run())
+sys.run_in_thread(pid_left.run())
+'''
+
+while True:
+    direction = vex.DirectionType.FWD
+    y_axis = con.axis3.position()
+    x_axis = con.axis4.position()
+ 
+    angle_rad = math.atan2(y_axis, x_axis) 
+    angle_deg = math.degrees(angle_rad)
+    r = math.sqrt(y_axis*y_axis+x_axis*x_axis)
+ 
+
+    if( angle_deg >=0 and angle_deg <= 90 ):
+        vel_right = r*(1-math.cos(angle_rad))
+        vel_left = r
+    elif( angle_deg > 90 and angle_deg <= 180) :
+        theta_prime = math.pi - angle_rad;
+        vel_left = r*(1-math.cos(theta_prime))
+        vel_right = r
+    elif( angle_deg > 180 and angle <= math.pi*1.5) :    
+        theta_prime = math.pi*1.5 - angle_rad;
+        vel_left = r*(1-math.cos(theta_prime))
+        vel_right = r
+        dierction = vex.DirectionType.REV
+    else:
+        theta_prime = math.pi*2 - angle_rad;
+        vel_right = r*(1-math.cos(theta_prime))
+        vel_left = r
+        direction = vex.DirectionType.REV
+    
+    if( x_axis > 0 or y_axis > 0 ):
+        print(r, angle_deg,vel_left, vel_right)
+
+    if( vel_right <= 10):
+        motor_right.stop()
+    else:
+        motor_right.spin(direction,vel_right)
+        
+    if( vel_left <= 10):
+        motor_left.stop()
+    else:
+        motor_left.spin(direction,vel_left)
+    pass
+    
 
 
 
@@ -103,7 +178,6 @@ class PID:
 	def getDerivator(self):
 		return self.Derivator
 
-vex.start()
 
 class pidmotor:
     #Either runs a motor at a constant angular velocity, or holds it at
@@ -113,24 +187,21 @@ class pidmotor:
         self.p1.setPoint(setPoint)
         self.motor = my_motor
 
-    def target_velocity( my_vel)
+    def target_velocity( self, my_vel):
     	self.p1.setPoint(my_vel)
     def run(self):
         while True:
             foo = self.p1.update(my_encoder.value())
             self.motor.run(foo)
-            sys.
+            pass
 
 #p2 = PID(2.0, 0.01, 0.01)
 #p2.setPoint(10.0)
 
-motor_right = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, True)
-motor_left = vex.Motor(vex.Ports.PORT1, vex.GearSetting.RATIO18_1, False)
-encoder_right = vex.digital_quad_encoder(brain.three_wire_port.b)
-encoder_left = vex.digital_quad_encoder(brain.three_wire_port.a)
 
-pid_right = pidmotor(motor_right, encoder_right)
-pid_left  = pidmotor(motor_left, encoder_left)
 
-sys.run_in_thread(pid_right.run())
-sys.run_in_thread(pid_left.run())
+
+
+
+#endregion config
+
