@@ -44,11 +44,15 @@ con     = vex.Controller(vex.ControllerType.PRIMARY)
 
 motor_right = vex.Motor(vex.Ports.PORT1, vex.GearSetting.RATIO18_1, True)
 motor_left = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, False)
+dt          = vex.Drivetrain(motor_left, motor_right, 319.1764, 292.1, vex.DistanceUnits.MM)
 
+encoder_right = vex.Encoder(brain.three_wire_port.e)
+encoder_left = vex.Encoder(brain.three_wire_port.b)
+encd  = vex.Encoder(brain.three_wire_port.d)
+encd.reset_rotation()
+encoder_right.reset_rotation()
+encoder_left.reset_rotation()
 '''
-encoder_right = vex.digital_quad_encoder(brain.three_wire_port.a)
-encoder_left = vex.digital_quad_encoder(brain.three_wire_port.b)
-
 pid_right = pidmotor(motor_right, encoder_right)
 pid_left  = pidmotor(motor_left, encoder_left)
 
@@ -57,6 +61,7 @@ sys.run_in_thread(pid_left.run())
 '''
 
 while True:
+    
     direction = vex.DirectionType.FWD
     y_axis = con.axis3.position()
     x_axis = con.axis4.position()
@@ -85,18 +90,33 @@ while True:
         direction = vex.DirectionType.REV
     
     if( x_axis > 0 or y_axis > 0 ):
-        print(r, angle_deg,vel_left, vel_right)
-
-    if( vel_right <= 10):
-        motor_right.stop()
-    else:
-        motor_right.spin(direction,vel_right)
+        print('r=',r, 'angle=',angle_deg,'vel_left=',vel_left, 'vel right=',vel_right, 'enc left=',encoder_left.value(), 'enc right=',encoder_right.value(), encd.value(),encd.rotation())
         
-    if( vel_left <= 10):
-        motor_left.stop()
-    else:
-        motor_left.spin(direction,vel_left)
-    pass
+
+    if( con.buttonB.pressing() == False ):
+        if( vel_right <= 10):
+            motor_right.stop()
+        else:
+            motor_right.spin(direction,vel_right)
+        
+        if( vel_left <= 10):
+            motor_left.stop()
+        else:
+            motor_left.spin(direction,vel_left)
+    else :
+        r = r/4
+        
+        dt.set_velocity(r, vex.VelocityUnits.PCT)
+        print( r,angle_deg-90,direction )
+        if( r < 10 ):
+            dt.stop()
+        elif( angle_deg <= 80 and angle_deg >= 0 ):
+            dt.turn_for(vex.TurnType.RIGHT, angle_deg, vex.RotationUnits.DEG,r, vex.VelocityUnits.PCT)
+        elif(angle_deg > 95 and angle_deg <= 180  ) :
+            dt.turn_for(vex.TurnType.LEFT, angle_deg-90,vex.RotationUnits.DEG)
+        else :    
+            dt.drive(direction)
+    sys.sleep(.05)
     
 
 
@@ -205,3 +225,45 @@ class pidmotor:
 
 #endregion config
 
+'''
+https://www.robotmesh.com/docs/vexv5-python/html/classvex_1_1_drivetrain.html
+
+# VEX V5 Python Project
+import sys
+import vex
+import math
+from vex import *
+
+#region config
+brain       = vex.Brain();
+motor_right = vex.Motor(vex.Ports.PORT15, vex.GearSetting.RATIO18_1, True)
+motor_left  = vex.Motor(vex.Ports.PORT16, vex.GearSetting.RATIO18_1, False)
+dt          = vex.Drivetrain(motor_left, motor_right, 319.1764, 292.1, vex.DistanceUnits.MM)
+#endregion config
+
+#set our standard velocity
+dt.set_velocity(20, vex.VelocityUnits.PCT)
+#advance four feet
+dt.drive_for(vex.DirectionType.FWD, 48, vex.DistanceUnits.IN)
+sys.sleep(1)
+#retreat two feet
+dt.drive_for(vex.DirectionType.REV, 24, vex.DistanceUnits.IN)
+sys.sleep(1)
+#set velocity a bit slower for more precision
+dt.set_velocity(10, vex.VelocityUnits.PCT)
+#turn to face a spot four feet to the right and two feet ahead
+#the result of calculating that angle has to be converted from radians to degrees by
+#multiplying by 180/pi
+dt.turn_for(vex.TurnType.RIGHT, (math.atan(float(48) / 24) / math.pi * 180), vex.RotationUnits.DEG)
+sys.sleep(1)
+#increase velocity again
+dt.set_velocity(20, vex.VelocityUnits.PCT)
+#drive along the hypotenuse of the triangle we used to compute our turn
+#if the length of the triangle's sides are a, b, and c, they are related by
+#a^2 + b^2 = c^2, so c, the side we want, is the square root of a^2 + b^2
+dt.drive_for(vex.DirectionType.FWD, (math.sqrt(24 * 24 + 48 * 48)), vex.DistanceUnits.IN)
+#after finishing a driveFor or turnFor command, the motors will stop in Hold
+#mode. To make them relax, you must explicitly stop them with another brakeType.
+dt.stop(BrakeType.coast);
+
+'''
