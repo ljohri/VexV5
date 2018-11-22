@@ -35,10 +35,9 @@ motor_left = vex.Motor(vex.Ports.PORT20, vex.GearSetting.RATIO18_1, False)
 dt          = vex.Drivetrain(motor_left, motor_right, 319.1764, 292.1, vex.DistanceUnits.MM)
 arm = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, False)
 arm.reset_rotation()
-print('here1')
+
 arm.rotate_to (30, RotationUnits.DEG, 30, vex.VelocityUnits.PCT,True)
 arm.stop()
-print('here2')
 
 #encoder_right = vex.Encoder(brain.three_wire_port.e)
 #encoder_left = vex.Encoder(brain.three_wire_port.b)
@@ -84,7 +83,7 @@ while True:
         direction = vex.DirectionType.REV
     
     if( x_axis > 0 or y_axis > 0 ):
-        print('r=',r, 'angle=',angle_deg,'vel_left=',vel_left, 'vel right=',vel_right, 'enc left=',encoder_left.value(), 'enc right=',encoder_right.value(), encd.value(),encd.rotation())
+        print('r=',r, 'angle=',angle_deg,'vel_left=',vel_left, 'vel right=',vel_right)
         
 
     if( con.buttonB.pressing() == True ):
@@ -107,7 +106,7 @@ while True:
         elif( angle_deg <= 80 and angle_deg >= 0 ):
             dt.turn_for(vex.TurnType.RIGHT, angle_deg, vex.RotationUnits.DEG,r, vex.VelocityUnits.PCT)
         elif(angle_deg > 95 and angle_deg <= 180  ) :
-            dt.turn_for(vex.TurnType.LEFT, angle_deg-90,vex.RotationUnits.DEG)
+            dt.turn_for(vex.TurnType.LEFT, angle_deg-90,vex.RotationUnits.DEG,r, vex.VelocityUnits.PCT)
         else :    
             dt.drive(direction)
     if(con.buttonX.pressing() == True):
