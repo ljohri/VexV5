@@ -1,18 +1,3 @@
-# VEX V5 Python Project
-import sys
-import vex
-from vex import *
-
-#region config
-brain = vex.Brain()
-
-rightencoder = vex.Encoder(brain.three_wire_port.a)
-leftencoder = vex.Encoder(brain.three_wire_port.b)
-motor_right = vex.Motor(vex.Ports.PORT1, vex.GearSetting.RATIO18_1, True)
-motor_left = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, False)
-
-
-
 # cav-pid.py - Runs motors with constant angular velocity, using shaft encoders,
 #              and a proportional integral derivative control loop.
 #
@@ -34,24 +19,33 @@ from math import *
 #
 #cnr437@gmail.com
 #
-#######	Example	#########
+####### Example #########
 #
 #p=PID(3.0,0.4,1.2)
 #p.setPoint(5.0)
 #while True:
 #     pid = p.update(measurement_value)
+print('start')
+
+
 con     = vex.Controller(vex.ControllerType.PRIMARY)
 
-motor_right = vex.Motor(vex.Ports.PORT1, vex.GearSetting.RATIO18_1, True)
-motor_left = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, False)
+motor_right = vex.Motor(vex.Ports.PORT11, vex.GearSetting.RATIO18_1, True)
+motor_left = vex.Motor(vex.Ports.PORT20, vex.GearSetting.RATIO18_1, False)
 dt          = vex.Drivetrain(motor_left, motor_right, 319.1764, 292.1, vex.DistanceUnits.MM)
+arm = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, False)
+arm.reset_rotation()
+print('here1')
+arm.rotate_to (30, RotationUnits.DEG, 30, vex.VelocityUnits.PCT,True)
+arm.stop()
+print('here2')
 
-encoder_right = vex.Encoder(brain.three_wire_port.e)
-encoder_left = vex.Encoder(brain.three_wire_port.b)
-encd  = vex.Encoder(brain.three_wire_port.d)
-encd.reset_rotation()
-encoder_right.reset_rotation()
-encoder_left.reset_rotation()
+#encoder_right = vex.Encoder(brain.three_wire_port.e)
+#encoder_left = vex.Encoder(brain.three_wire_port.b)
+#encd  = vex.Encoder(brain.three_wire_port.d)
+#encd.reset_rotation()
+#encoder_right.reset_rotation()
+#encoder_left.reset_rotation()
 '''
 pid_right = pidmotor(motor_right, encoder_right)
 pid_left  = pidmotor(motor_left, encoder_left)
@@ -93,7 +87,7 @@ while True:
         print('r=',r, 'angle=',angle_deg,'vel_left=',vel_left, 'vel right=',vel_right, 'enc left=',encoder_left.value(), 'enc right=',encoder_right.value(), encd.value(),encd.rotation())
         
 
-    if( con.buttonB.pressing() == False ):
+    if( con.buttonB.pressing() == True ):
         if( vel_right <= 10):
             motor_right.stop()
         else:
@@ -116,87 +110,98 @@ while True:
             dt.turn_for(vex.TurnType.LEFT, angle_deg-90,vex.RotationUnits.DEG)
         else :    
             dt.drive(direction)
+    if(con.buttonX.pressing() == True):
+        dt.drive_for(vex.DirectionType.FWD, 200, vex.DistanceUnits.MM, 30, vex.VelocityUnits.PCT, True) 
+    
+    if   ( con.buttonR1.pressing() == True ) :
+        arm.spin(vex.DirectionType.FWD,30,  vex.VelocityUnits.PCT)
+    elif ( con.buttonR2.pressing() == True) :
+        arm.spin(vex.DirectionType.REV,30,  vex.VelocityUnits.PCT)
+    else :
+        arm.stop(vex.BrakeType.HOLD)
+    
+    
     sys.sleep(.05)
     
 
 
 
 class PID:
-	"""
-	Discrete PID control
-	"""
+    """
+    Discrete PID control
+    """
 
-	def __init__(self, P=2.0, I=0.0, D=1.0, Derivator=0, Integrator=0, Integrator_max=500, Integrator_min=-500):
+    def __init__(self, P=2.0, I=0.0, D=1.0, Derivator=0, Integrator=0, Integrator_max=500, Integrator_min=-500):
 
-		self.Kp=P
-		self.Ki=I
-		self.Kd=D
-		self.Derivator=Derivator
-		self.Integrator=Integrator
-		self.Integrator_max=Integrator_max
-		self.Integrator_min=Integrator_min
+        self.Kp=P
+        self.Ki=I
+        self.Kd=D
+        self.Derivator=Derivator
+        self.Integrator=Integrator
+        self.Integrator_max=Integrator_max
+        self.Integrator_min=Integrator_min
 
-		self.set_point=0.0
-		self.error=0.0
+        self.set_point=0.0
+        self.error=0.0
 
-	def update(self,current_value):
-		"""
-		Calculate PID output value for given reference input and feedback
-		"""
+    def update(self,current_value):
+        """
+        Calculate PID output value for given reference input and feedback
+        """
 
-		self.error = self.set_point - current_value
+        self.error = self.set_point - current_value
 
-		self.P_value = self.Kp * self.error
-		self.D_value = self.Kd * ( self.error - self.Derivator)
-		self.Derivator = self.error
+        self.P_value = self.Kp * self.error
+        self.D_value = self.Kd * ( self.error - self.Derivator)
+        self.Derivator = self.error
 
-		self.Integrator = self.Integrator + self.error
+        self.Integrator = self.Integrator + self.error
 
-		if self.Integrator > self.Integrator_max:
-			self.Integrator = self.Integrator_max
-		elif self.Integrator < self.Integrator_min:
-			self.Integrator = self.Integrator_min
+        if self.Integrator > self.Integrator_max:
+            self.Integrator = self.Integrator_max
+        elif self.Integrator < self.Integrator_min:
+            self.Integrator = self.Integrator_min
 
-		self.I_value = self.Integrator * self.Ki
+        self.I_value = self.Integrator * self.Ki
 
-		PID = self.P_value + self.I_value + self.D_value
+        PID = self.P_value + self.I_value + self.D_value
 
-		return PID
+        return PID
 
-	def setPoint(self,set_point):
-		"""
-		Initilize the setpoint of PID
-		"""
-		self.set_point = set_point
-		self.Integrator=0
-		self.Derivator=0
+    def setPoint(self,set_point):
+        """
+        Initilize the setpoint of PID
+        """
+        self.set_point = set_point
+        self.Integrator=0
+        self.Derivator=0
 
-	def setIntegrator(self, Integrator):
-		self.Integrator = Integrator
+    def setIntegrator(self, Integrator):
+        self.Integrator = Integrator
 
-	def setDerivator(self, Derivator):
-		self.Derivator = Derivator
+    def setDerivator(self, Derivator):
+        self.Derivator = Derivator
 
-	def setKp(self,P):
-		self.Kp=P
+    def setKp(self,P):
+        self.Kp=P
 
-	def setKi(self,I):
-		self.Ki=I
+    def setKi(self,I):
+        self.Ki=I
 
-	def setKd(self,D):
-		self.Kd=D
+    def setKd(self,D):
+        self.Kd=D
 
-	def getPoint(self):
-		return self.set_point
+    def getPoint(self):
+        return self.set_point
 
-	def getError(self):
-		return self.error
+    def getError(self):
+        return self.error
 
-	def getIntegrator(self):
-		return self.Integrator
+    def getIntegrator(self):
+        return self.Integrator
 
-	def getDerivator(self):
-		return self.Derivator
+    def getDerivator(self):
+        return self.Derivator
 
 
 class pidmotor:
@@ -208,7 +213,7 @@ class pidmotor:
         self.motor = my_motor
 
     def target_velocity( self, my_vel):
-    	self.p1.setPoint(my_vel)
+        self.p1.setPoint(my_vel)
     def run(self):
         while True:
             foo = self.p1.update(my_encoder.value())
@@ -220,50 +225,5 @@ class pidmotor:
 
 
 
-
-
-
 #endregion config
 
-'''
-https://www.robotmesh.com/docs/vexv5-python/html/classvex_1_1_drivetrain.html
-
-# VEX V5 Python Project
-import sys
-import vex
-import math
-from vex import *
-
-#region config
-brain       = vex.Brain();
-motor_right = vex.Motor(vex.Ports.PORT15, vex.GearSetting.RATIO18_1, True)
-motor_left  = vex.Motor(vex.Ports.PORT16, vex.GearSetting.RATIO18_1, False)
-dt          = vex.Drivetrain(motor_left, motor_right, 319.1764, 292.1, vex.DistanceUnits.MM)
-#endregion config
-
-#set our standard velocity
-dt.set_velocity(20, vex.VelocityUnits.PCT)
-#advance four feet
-dt.drive_for(vex.DirectionType.FWD, 48, vex.DistanceUnits.IN)
-sys.sleep(1)
-#retreat two feet
-dt.drive_for(vex.DirectionType.REV, 24, vex.DistanceUnits.IN)
-sys.sleep(1)
-#set velocity a bit slower for more precision
-dt.set_velocity(10, vex.VelocityUnits.PCT)
-#turn to face a spot four feet to the right and two feet ahead
-#the result of calculating that angle has to be converted from radians to degrees by
-#multiplying by 180/pi
-dt.turn_for(vex.TurnType.RIGHT, (math.atan(float(48) / 24) / math.pi * 180), vex.RotationUnits.DEG)
-sys.sleep(1)
-#increase velocity again
-dt.set_velocity(20, vex.VelocityUnits.PCT)
-#drive along the hypotenuse of the triangle we used to compute our turn
-#if the length of the triangle's sides are a, b, and c, they are related by
-#a^2 + b^2 = c^2, so c, the side we want, is the square root of a^2 + b^2
-dt.drive_for(vex.DirectionType.FWD, (math.sqrt(24 * 24 + 48 * 48)), vex.DistanceUnits.IN)
-#after finishing a driveFor or turnFor command, the motors will stop in Hold
-#mode. To make them relax, you must explicitly stop them with another brakeType.
-dt.stop(BrakeType.coast);
-
-'''
