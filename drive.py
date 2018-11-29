@@ -15,6 +15,7 @@ motor_arm   = vex.Motor(vex.Ports.PORT2, vex.GearSetting.RATIO18_1, True)
 con         = vex.Controller(vex.ControllerType.PRIMARY)
 driveTrain  = vex.Drivetrain(motor_left, motor_right, 319.1764, 292.1, vex.DistanceUnits.CM)
 con.set_deadband(10)
+print("A welcome change!")
 
 #Procedures
 def pre_auton():
@@ -56,34 +57,28 @@ def getSubordinateMotorPower(main_power, angle):
 class autonomous_class:
     def goto():
         motor_arm.rotate_to(-60, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
-        print("The arm rotated")
-        sys.sleep(2)
         motor_arm.stop(vex.BrakeType.HOLD)
-        driveTrain.turn_for(vex.TurnType.RIGHT, 180, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
-        driveTrain.drive_for(vex.DirectionType.FWD, ToCm(2, "FEET"), \
-                             vex.DistanceUnits.CM, 20, vex.VelocityUnits.PCT)
-        driveTrain.turn_for(vex.TurnType.LEFT, 180, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
-        driveTrain.drive_for(vex.DirectionType.FWD, ToCm(1, "FEET"), \
-                             vex.DistanceUnits.CM, 20, vex.VelocityUnits.PCT)
-    def turn_over_cap():
-        driveTrain.drive_for(vex.DirectionType.FWD, ToCm(8, "INCHES"), \
-                             vex.DistanceUnits.CM, 30, vex.VelocityUnits.PCT, False)
-        motor_arm.rotate_to(-360, vex.RotationUnits.DEG, 50, vex.VelocityUnits.PCT)
-        sys.sleep(1)
-        
-    def pickUp():
-        driveTrain.drive_for(vex.DirectionType.FWD, ToCm(5.5, "INCHES"), \
-                             vex.DistanceUnits.CM, 20, vex.VelocityUnits.PCT)
-        motor_arm.rotate_to(-130, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
-        driveTrain.drive_for(vex.DirectionType.FWD, ToCm(4.2, "INCHES"), \
-                             vex.DistanceUnits.CM, 20, vex.VelocityUnits.PCT)
-        motor_claw.rotate_for_time(vex.DirectionType.REV, 0.81, vex.TimeUnits.SEC, 30, vex.VelocityUnits.PCT)
-        motor_arm.rotate_to(-360, vex.RotationUnits.DEG, 50, vex.VelocityUnits.PCT)
-        sys.sleep()
+        driveTrain.turn_for(vex.TurnType.RIGHT, 90, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
+
+
     def autonomous():
-        autonomous_class.goto()
-        autonomous_class.turn_over_cap()
-        autonomous_class.pickUp()   #this bit still needs to be worked on 
+        #autonomous_class.goto()
+        print("Checkpoint 1: You are a failure")
+        motor_arm.rotate_to(-390, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
+        print("Checkpoint 2: What is wrong with you!!!")
+        driveTrain.drive_for(vex.DirectionType.FWD, ToCm(1, "FEET"), vex.DistanceUnits.CM, 20, vex.VelocityUnits.PCT)
+        print("Checkpoint 3: What is wrong with you!!!")
+        motor_arm.stop(vex.BrakeType.HOLD)
+        driveTrain.turn_for(vex.TurnType.RIGHT, 100.5, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
+        driveTrain.drive_for(vex.DirectionType.FWD, ToCm(5.5, "FEET"), vex.DistanceUnits.CM, 40, vex.VelocityUnits.PCT)
+        sys.sleep(1)
+        driveTrain.drive_for(vex.DirectionType.REV, ToCm(3.35, "FEET"), vex.DistanceUnits.CM, 20, vex.VelocityUnits.PCT)
+        driveTrain.turn_for(vex.TurnType.RIGHT, 102, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
+        driveTrain.drive_for(vex.DirectionType.REV, ToCm(2, "FEET"), vex.DistanceUnits.CM, 50, vex.VelocityUnits.PCT)
+        motor_arm.rotate_to(0, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
+        driveTrain.drive_for(vex.DirectionType.REV, ToCm(10, "INCHES"), vex.DistanceUnits.CM, 50, vex.VelocityUnits.PCT)
+        motor_arm.rotate_to(-200, vex.RotationUnits.DEG, 20, vex.VelocityUnits.PCT)
+        driveTrain.drive_for(vex.DirectionType.REV, ToCm(3, "INCHES"), vex.DistanceUnits.CM, 40, vex.VelocityUnits.PCT)
 #*******************************************************************************        
 class driver_class:
     def drivercontrol():
@@ -146,7 +141,7 @@ class driver_class:
             
             #Maneuvering the claw
             if con.buttonL1.pressing():
-                motor_claw.spin(vex.DirectionType.FWD, 85, vex.VelocityUnits.PCT)
+                motor_claw.spin(vex.DirectionType.FWD, 100, vex.VelocityUnits.PCT)
                 print("You pressed L1! Congratulations!")
             elif con.buttonL2.pressing():
                 motor_claw.spin(vex.DirectionType.REV, 85, vex.VelocityUnits.PCT)
@@ -167,5 +162,5 @@ class driver_class:
             sys.sleep(0.08)
 
 #main section
-#autonomous_class.autonomous()
-driver_class.drivercontrol()
+autonomous_class.autonomous()
+#driver_class.drivercontrol()
