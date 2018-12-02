@@ -14,6 +14,8 @@ con         = vex.Controller(vex.ControllerType.PRIMARY)
 
 #output cable connected to port C and the inpur connected to port d
 #output and input have to be on the consecutive ports in that order
+#Sonar has two three wire connection - one is termed as input and the other
+#as the output
 sonar = vex.Sonar(brain.three_wire_port.c)
 
 while True :
