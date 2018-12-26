@@ -5,8 +5,7 @@ from vex import *
 
 #region config
 brain       = vex.Brain();
-motor_right = vex.Motor(vex.Ports.PORT15, vex.GearSetting.RATIO18_1, False)
-motor_left  = vex.Motor(vex.Ports.PORT16, vex.GearSetting.RATIO18_1, False)
+Motor 		= vex.Motor(vex.Ports.PORT15, vex.GearSetting.RATIO18_1, False)
 bumper_a    = vex.Bumper(brain.three_wire_port.a)
 #endregion config
 
@@ -24,12 +23,16 @@ while True:
   # Ready to try again!
 
 
+def autonomous():
+	while True:
+		if bumper_a.pressing()==False:
+			Motor.spin(vex.DirectionType.FWD, 40, vex.VelocityUnits.PCT)
+	pass	
 
- '''
-while True:
-    if control.buttonB.pressing():
-        motor.spin(vex.DirectionType.FWD, 40, vex.VelocityUnits.PCT)
-    if control.buttonX.pressing():
-        motor.spin(vex.DirectionType.REV, 40, vex.VelocityUnits.PCT)
-pass
- '''
+def drivercontrol():
+	pass
+
+
+competition = vex.Competition()
+competition.autonomous(autonomous)
+competition.drivercontrol(drivercontrol)
