@@ -11,7 +11,7 @@ bumper_a    = vex.Bumper(brain.three_wire_port.a)
 #endregion config
 
 # Carefully now...
-dt.set_velocity(20, vex.VelocityUnits.PCT)
+
 while True:
   # Creep back...
   dt.drive(vex.DirectionType.REV)
@@ -22,3 +22,14 @@ while True:
   # Turn a bit to avoid it...
   dt.turn_for(vex.TurnType.LEFT, 77, vex.RotationUnits.DEG)
   # Ready to try again!
+
+
+
+ '''
+while True:
+    if control.buttonB.pressing():
+        motor.spin(vex.DirectionType.FWD, 40, vex.VelocityUnits.PCT)
+    if control.buttonX.pressing():
+        motor.spin(vex.DirectionType.REV, 40, vex.VelocityUnits.PCT)
+pass
+ '''
