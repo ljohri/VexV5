@@ -1,24 +1,32 @@
 # VEX V5 Python Project
-import sys
+# import sys
 import vex
 from vex import *
 
-#region config
-brain       = vex.Brain();
-motor_right = vex.Motor(vex.Ports.PORT15, vex.GearSetting.RATIO18_1, False)
-motor_left  = vex.Motor(vex.Ports.PORT16, vex.GearSetting.RATIO18_1, False)
-bumper_a    = vex.Bumper(brain.three_wire_port.a)
-#endregion config
+# region config
+brain = vex.Brain();
+Motor = vex.Motor(vex.Ports.PORT15, vex.GearSetting.RATIO18_1, False)
+bumper_b = vex.Bumper(brain.three_wire_port.b)
 
-# Carefully now...
-dt.set_velocity(20, vex.VelocityUnits.PCT)
-while True:
-  # Creep back...
-  dt.drive(vex.DirectionType.REV)
-  sys.wait_for(bumper_a.pressing)
-  # Ran into something, move away from it
-  dt.drive(vex.DirectionType.FWD)
-  sys.sleep(2)
-  # Turn a bit to avoid it...
-  dt.turn_for(vex.TurnType.LEFT, 77, vex.RotationUnits.DEG)
-  # Ready to try again!
+
+# endregion config
+
+
+def autonomous():
+    while True:
+        print(bumper_b.pressing())
+        if bumper_b.pressing() == 0:
+            Motor.spin(vex.DirectionType.FWD, 40, vex.VelocityUnits.PCT)
+
+        else:
+            Motor.spin(vex.DirectionType.FWD, 0, vex.VelocityUnits.PCT)
+        sys.sleep(1)
+
+
+def drivercontrol():
+    pass
+
+
+competition = vex.Competition()
+competition.autonomous(autonomous)
+competition.drivercontrol(drivercontrol)
