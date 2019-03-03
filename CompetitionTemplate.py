@@ -6,7 +6,7 @@ from vex import *
 #region config
 brain = vex.Brain();
 
-#prints on teh Brin screen
+#prints on the  Brin screen
 brain.screen.print_("hello");
 
 #endregion config
@@ -48,7 +48,7 @@ competition.drivercontrol(drivercontrol)
 
 # Run the pre-autonomous function.
 pre_auton()
-drivercontrol()
+
 
 # Robot Mesh Studio runtime continues to run until all threads and
 # competition callbacks are finished.
