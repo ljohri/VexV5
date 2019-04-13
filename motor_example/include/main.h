@@ -82,9 +82,9 @@ void  sensor_read(void* var);
 #define MOTORPORT_RIGHT 2
 #define PORT_PING       1
 #define PORT_ECHO       2
-#define ANALOG_SENSOR_PORT_LEFT     4
-#define ANALOG_SENSOR_PORT_MID      3
-#define ANALOG_SENSOR_PORT_RIGHT    2    
+#define ANALOG_SENSOR_PORT_LEFT     7
+#define ANALOG_SENSOR_PORT_MID      6
+#define ANALOG_SENSOR_PORT_RIGHT    5    
 
 
 #endif  // _PROS_MAIN_H_

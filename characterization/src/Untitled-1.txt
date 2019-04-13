@@ -1,0 +1,12 @@
+		//stop when 3 sensors are on the same color
+    int diff ;
+		diff = abs(s_r.get_value()+s_l.get_value()-2*s_m.get_value());
+		if(  diff < 300 )
+		{
+			printf("diff:%d l:%u m:%u r:%u\n", diff,
+			s_l.get_value(),s_m.get_value(),s_r.get_value() );
+
+			drive(turn,speed);
+			printf("no sensor on white line\n")
+			stop();
+		}
