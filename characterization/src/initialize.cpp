@@ -52,8 +52,15 @@ void initialize() {
 	pros::lcd::initialize();
 	pros::lcd::set_text(1, "Hello PROS User!");
 	pros::lcd::register_btn1_cb(on_center_button);
-
-	printf("calling camera module...\n") ;
+	pros::ADIGyro gyro (2);
+	 pros::delay(1000);
+	while (true) 
+	{
+    	// Get the gyro heading
+    	printf( "Angle: %f\n" ,gyro.get_value());
+    	pros::delay(500);
+	}
+	printf("calling camera module...x\n") ;
 	camera_module();
 	
 	

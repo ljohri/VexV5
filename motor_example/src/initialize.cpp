@@ -16,11 +16,23 @@ void on_center_button() {
  * All other competition modes are blocked by initialize; it is recommended
  * to keep execution time for this mode under a few seconds.
  */
+#define GYRO_PORT 2
 void initialize() {
 
 	pros::lcd::initialize();
 
 	//initialize the left and right motors
+	 pros::ADIGyro gyro (GYRO_PORT);
+	 pros::delay(1000);
+	//while (true) 
+	{
+    	// Get the gyro heading
+    	std::cout << "Angle: " << gyro.get_value();
+    	pros::delay(1000);
+	}
+
+	
+	#if 0
 	pros::Motor drive_left_initializer (MOTORPORT_LEFT, pros::E_MOTOR_GEARSET_18, true, pros::E_MOTOR_ENCODER_DEGREES);
 	pros::Motor drive_right_initializer (MOTORPORT_RIGHT, pros::E_MOTOR_GEARSET_18, false, pros::E_MOTOR_ENCODER_DEGREES);
 	pros::Task   sensor_read_task( sensor_read,
@@ -28,7 +40,7 @@ void initialize() {
                    TASK_PRIORITY_DEFAULT,
                    TASK_STACK_DEPTH_DEFAULT,
                     "sensor_read_task");
-
+	#endif
 	pros::lcd::register_btn1_cb(on_center_button);
 
 }

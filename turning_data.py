@@ -19,9 +19,10 @@ def gyro_get_value() :
     return gyro.value() - gyro_base 
     
 def log_values() :
-    buf = str(motor_left_speed) + "\t" + str(motor_right_speed) + "\t" + \
+    buf = str(sys.clock()) + "\t" + str(motor_left_speed) + "\t" + \
+        str(motor_right_speed) + "\t" + \
         str(gyro_get_value) +"\t" + str(motor_left.rotation()) +"\t" + \
-            str( motor_left.rotation() + "\n")
+        str( motor_left.rotation() + "\n")
     vex.BrainSDCard.appendfile(FILE, buf)        
     
 MAX_SPEED = 40
