@@ -17,9 +17,15 @@ def gyro_reset():
 
 def gyro_get_value() :
     return gyro.value() - gyro_base 
-    
+
+def myclock_reset():
+    time_base = sys.clock()
+
+def  get_myclock():
+    retrun sys.clock()-time_base 
+
 def log_values() :
-    buf = str(sys.clock()) + "\t" + str(motor_left_speed) + "\t" + \
+    buf = str(get_myclock()) + "\t" + str(motor_left_speed) + "\t" + \
         str(motor_right_speed) + "\t" + \
         str(gyro_get_value) +"\t" + str(motor_left.rotation()) +"\t" + \
         str( motor_left.rotation() + "\n")
@@ -38,6 +44,7 @@ motor_left         = vex.Motor(vex.Ports.PORT20, vex.GearSetting.RATIO18_1, Fals
 motor_left_speed = MAX_SPEED
 motor_right_speed_factor = FACTOR
 
+myclock_reset()
 gyro_base = 0
 str="   \n"
 bumper = vex.Bumper(brain.three_wire_port.b)

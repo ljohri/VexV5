@@ -15,6 +15,8 @@
 #define LEFT 1
 #define RIGHT 2
 #define MAX_VOLTAGE 12000 
+#define MOTORPORT_LEFT  20
+#define MOTORPORT_RIGHT  13
 
 typedef enum {
 	straight=0,
@@ -26,6 +28,8 @@ typedef enum {
 
 pros::Motor* m_r;
 pros::Motor* m_l;
+
+
 
 static void line_follower();
 static void drive( state_t dir, int speed);
@@ -52,16 +56,41 @@ void initialize() {
 	pros::lcd::initialize();
 	pros::lcd::set_text(1, "Hello PROS User!");
 	pros::lcd::register_btn1_cb(on_center_button);
-	pros::ADIGyro gyro (2);
-	 pros::delay(1000);
+	
+	pros::Motor drive_left(MOTORPORT_LEFT, pros::E_MOTOR_GEARSET_18, true, pros::E_MOTOR_ENCODER_DEGREES);
+	pros::Motor drive_right(MOTORPORT_RIGHT, pros::E_MOTOR_GEARSET_18, false, pros::E_MOTOR_ENCODER_DEGREES);
+
+	 
+
+	pros::ADIGyro gyro (1);
+	pros::delay(2000);
+	double TURN = 90;
+	double turn = 0;
+	double turn_velocity_start = 50; 
+	double turn_velocity = turn_velocity_start;
+	printf("..... turn:%f", turn);
 	while (true) 
 	{
     	// Get the gyro heading
-    	printf( "Angle: %f\n" ,gyro.get_value());
-    	pros::delay(500);
+		turn = fabs(gyro.get_value())/10 ;
+		turn_velocity = 2* turn_velocity_start * (TURN-turn)/90 ;
+
+		if( TURN-turn < 0.1 ) 
+		{
+			turn_velocity = 0;
+			printf(". turn:%f", turn);
+			break;
+		}
+		drive_left.move_velocity(turn_velocity);
+		drive_right.move_velocity(turn_velocity*(-1));
+		if( turn_velocity == 0 )
+			break;
+		pros::delay(1);
 	}
-	printf("calling camera module...x\n") ;
-	camera_module();
+	printf("..... turn:%f", turn);
+	pros::delay(10000*10);
+	return ;
+
 	
 	
 
