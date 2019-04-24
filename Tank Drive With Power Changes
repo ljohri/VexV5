@@ -1,0 +1,43 @@
+# VEX V5 Python Project
+import sys
+import vex
+import math
+from vex import *
+
+#region config
+brain       = vex.Brain()
+dev         = vex.Devices()
+con         = vex.Controller(vex.ControllerType.PRIMARY)
+motor_left  = vex.Motor(vex.Ports.PORT13, vex.GearSetting.RATIO18_1, True)
+motor_right = vex.Motor(vex.Ports.PORT20, vex.GearSetting.RATIO18_1, False)
+#pos1        = con.axis1.position()
+pos2        = con.axis2.position()
+pos3        = con.axis3.position()
+#pos4        = con.axis4.position()
+power = 0.5
+
+#endregion config
+sys.sleep(2)
+print 'hello'
+while True:
+    #print pos1
+    #print pos2
+    #print pos3
+    #print pos4
+    #print(position) 
+    if con.buttonX.pressing():
+        power = 0.25
+    if con.buttonA.pressing():
+        power = 0.50
+    if con.buttonB.pressing():
+        power = 0.75
+    if con.buttonY.pressing():
+        power = 1.0
+        
+    #pos1    = con.axis1.position()
+    pos2    = con.axis2.position() * power
+    pos3    = con.axis3.position() * power
+    #pos4    = con.axis4.position()
+
+    motor_left.spin(vex.DirectionType.FWD, pos3, vex.VelocityUnits.PCT)
+    motor_right.spin(vex.DirectionType.FWD, pos2, vex.VelocityUnits.PCT)
